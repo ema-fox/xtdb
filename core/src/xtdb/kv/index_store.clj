@@ -995,6 +995,20 @@
                                              (mem/->nippy-buffer v))))))))))
 
 (defrecord KvIndexStoreTx [persistent-kv-store transient-kv-store tx fork-at !evicted-eids thread-mgr cav-cache canonical-buffer-cache stats-kvs-cache]
+  db/IndexStore
+  (begin-index-tx [_ tx fork-at]
+    (let [{::xt/keys [tx-id tx-time]} tx]
+      (kv/store transient-kv-store
+                [(MapEntry/create (encode-tx-time-mapping-key-to nil tx-time tx-id) mem/empty-buffer)])
+      (->KvIndexStoreTx persistent-kv-store (.clone transient-kv-store) tx fork-at
+                        (atom @!evicted-eids) thread-mgr
+                        (nop-cache/->nop-cache {}) (nop-cache/->nop-cache {}))))
+
+  db/LatestCompletedTx
+  (latest-completed-tx [_]
+    (latest-completed-tx transient-kv-store))
+
+
   db/IndexStoreTx
   (index-docs [_ docs]
     (with-open [persistent-kv-snapshot (kv/new-snapshot persistent-kv-store)

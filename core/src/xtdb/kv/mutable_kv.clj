@@ -3,6 +3,7 @@
             [xtdb.memory :as mem])
   (:import clojure.lang.ISeq
            java.io.Closeable
+           java.lang.Cloneable
            [java.util NavigableMap TreeMap]))
 
 (deftype MutableKvIterator [^NavigableMap db, !tail-seq]
@@ -43,6 +44,11 @@
   (close [_]))
 
 (deftype MutableKvStore [^NavigableMap db]
+
+  Cloneable
+  (clone [this]
+    (MutableKvStore. (.clone db)))
+
   kv/KvStore
   (new-snapshot ^java.io.Closeable [this]
     (->MutableKvSnapshot db))

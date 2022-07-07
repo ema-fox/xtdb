@@ -1514,3 +1514,24 @@
 
     (t/is (= #{[:foo]}
              (xt/q db '{:find [e], :where [[e :xt/id]]})))))
+
+(t/deftest test-with-tx
+  (let [dbs (doall (reductions (fn [db i]
+                                 (xt/with-tx db [[::xt/put {:xt/id i :foo :bar}]]))
+                               (xt/db *api*)
+                               (range 9)))
+       dbs-with-evictions (doall (map (fn [db x]
+                                         (xt/with-tx db [[::xt/evict (- x 2)]]))
+                                       dbs
+                                       (range 9)))]
+    (dorun (map (fn [db x]
+                  (t/is (= (set (map vector (range x)))
+                           (xt/q db '{:find [e] :where [[e :foo :bar]]}))))
+                dbs
+                (range 9)))
+    (dorun (map (fn [db x]
+                  (t/is (= (disj (set (map vector (range x)))
+                                 [(- x 2)])
+                           (xt/q db '{:find [e] :where [[e :foo :bar]]}))))
+                dbs-with-evictions
+                (range 9)))))
